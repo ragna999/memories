@@ -1,13 +1,18 @@
+// pages/index.js
 import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import Footer from "@/components/Footer";
 
-// compress util (paste after imports)
+// ---------- CONFIG ----------
+const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || null; // set this in Vercel to your Railway public domain
+
+// ---------- Helpers ----------
+// compress util (single implementation)
 async function shrinkFile(file, maxWidth = 1024, quality = 0.8) {
   // kalau bukan image, return original
-  if (!file.type || !file.type.startsWith("image/")) return file;
+  if (!file || !file.type || !file.type.startsWith("image/")) return file;
 
   // create image element
   const img = await new Promise((resolve, reject) => {
@@ -50,7 +55,7 @@ async function shrinkFile(file, maxWidth = 1024, quality = 0.8) {
   return newFile;
 }
 
-// --- Paste this after imports, before Home() ---
+// ---------- UI Helpers ----------
 function ZoomableImage({ src }) {
   const containerRef = useRef(null);
   const imgRef = useRef(null);
@@ -59,13 +64,11 @@ function ZoomableImage({ src }) {
   const [dragging, setDragging] = useState(false);
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
 
-  // remount/center when src changes
   useEffect(() => {
     setZoom(1);
     setOffset({ x: 0, y: 0 });
   }, [src]);
 
-  // wheel to zoom (centered on cursor)
   const handleWheel = (e) => {
     e.preventDefault();
     const rect = containerRef.current.getBoundingClientRect();
@@ -75,7 +78,6 @@ function ZoomableImage({ src }) {
     const delta = e.deltaY < 0 ? 0.12 : -0.12;
     const nextZoom = Math.min(3, Math.max(0.5, +(prevZoom + delta).toFixed(2)));
 
-    // adjust offset so zoom centers at cursor
     const img = imgRef.current;
     if (img) {
       const imgRect = img.getBoundingClientRect();
@@ -156,9 +158,7 @@ function ZoomableImage({ src }) {
   );
 }
 
-
 // === Toast System ===
-
 function Toast({ toast }) {
   if (!toast.visible) return null;
   const colors = {
@@ -172,7 +172,7 @@ function Toast({ toast }) {
       style={{
         position: "fixed",
         ttop: 70,
-        right: 40,        
+        right: 40,
         background: colors[toast.type] || colors.info,
         color: "white",
         padding: "10px 16px",
@@ -196,63 +196,59 @@ function Toast({ toast }) {
   );
 }
 
-
 export default function Home() {
-
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  
   const [toast, setToast] = useState({ message: "", type: "", visible: false });
-
-function showToast(message, type = "info", duration = 3000) {
-  setToast({ message, type, visible: true });
-  setTimeout(() => setToast({ message: "", type: "", visible: false }), duration);
-}
+  function showToast(message, type = "info", duration = 3000) {
+    setToast({ message, type, visible: true });
+    setTimeout(() => setToast({ message: "", type: "", visible: false }), duration);
+  }
 
   const [imageSize, setImageSize] = useState("1024x1024");
-//login
-const [showLoginModal, setShowLoginModal] = useState(false);
-const [isLoggedIn, setIsLoggedIn] = useState(false);
-const [loginLoading, setLoginLoading] = useState(false);
-const [usernameInput, setUsernameInput] = useState("");
-const [passwordInput, setPasswordInput] = useState("");
+  //login
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [usernameInput, setUsernameInput] = useState("");
+  const [passwordInput, setPasswordInput] = useState("");
 
-// cek apakah sudah login
-useEffect(() => {
-  const token = localStorage.getItem("sogni_token");
-  const username = localStorage.getItem("sogni_username");
-  setIsLoggedIn(!!(token && username));
-}, []);
+  // cek apakah sudah login
+  useEffect(() => {
+    const token = localStorage.getItem("sogni_token");
+    const username = localStorage.getItem("sogni_username");
+    setIsLoggedIn(!!(token && username));
+  }, []);
 
-async function handleLoginSubmit(e) {
-  e.preventDefault();
-  setLoginLoading(true);
-  try {
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: usernameInput,
-        password: passwordInput,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Login gagal");
+  async function handleLoginSubmit(e) {
+    e.preventDefault();
+    setLoginLoading(true);
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: usernameInput,
+          password: passwordInput,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Login gagal");
 
-    localStorage.setItem("sogni_username", data.username);
-    localStorage.setItem("sogni_token", data.token);
-    if (data.refreshToken)
-      localStorage.setItem("sogni_refresh", data.refreshToken);
+      localStorage.setItem("sogni_username", data.username);
+      localStorage.setItem("sogni_token", data.token);
+      if (data.refreshToken) localStorage.setItem("sogni_refresh", data.refreshToken);
 
-    setIsLoggedIn(true);
-    setShowLoginModal(false);
-    showToast("✅ Login sukses!", "success");
-  } catch (err) {
-    showToast("❌ " + err.message);
-  } finally {
-    setLoginLoading(false);
+      setIsLoggedIn(true);
+      setShowLoginModal(false);
+      showToast("✅ Login sukses!", "success");
+    } catch (err) {
+      showToast("❌ " + err.message);
+    } finally {
+      setLoginLoading(false);
+    }
   }
-}
+
   const [prompt, setPrompt] = useState(
     "thin colorful sketchy lines, flat pastel colors, childlike chibi, cute face, sleepy eyes, multicolor pixel outlines"
   );
@@ -277,7 +273,6 @@ async function handleLoginSubmit(e) {
   const dropRef = useRef(null);
   const router = useRouter();
 
-  
   // Fetch models
   useEffect(() => {
     (async () => {
@@ -290,25 +285,47 @@ async function handleLoginSubmit(e) {
     })();
   }, []);
 
-  // Polling job
+  // Polling job (modified: supports WORKER_URL or fallback to /api/status)
   useEffect(() => {
     if (!polling || !jobId) return;
     let mounted = true;
     const pollInterval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/status?jobId=${jobId}`);
-        const j = await res.json();
+        let res;
+        if (WORKER_URL) {
+          res = await fetch(`${WORKER_URL.replace(/\/+$/, "")}/job/${encodeURIComponent(jobId)}`);
+        } else {
+          res = await fetch(`/api/status?jobId=${encodeURIComponent(jobId)}`);
+        }
+
+        if (res.status === 202) {
+          const j = await res.json().catch(() => ({}));
+          if (!mounted) return;
+          setJobStatus(j.status || "pending");
+          // keep polling
+          return;
+        }
+
+        const j = await res.json().catch(() => null);
         if (!mounted) return;
-        setJobStatus(j.status);
-        if (j.status === "done") {
-          setOutputs(j.outputs || []);
+        if (!res.ok) {
+          setPolling(false);
+          setJobStatus("error");
+          console.error("Polling error:", j || await res.text().catch(()=>'')); // logs
+          return;
+        }
+
+        setJobStatus(j?.status || j?.state || "done");
+        if ((j?.status || j?.state) === "done") {
+          setOutputs(j.outputs || j.raw?.outputs || []);
           setPolling(false);
           setProgress(100);
-        } else if (j.status === "error") {
+        } else if ((j?.status || j?.state) === "error") {
           setPolling(false);
           setProgress(0);
         }
-      } catch {
+      } catch (err) {
+        console.warn("polling error", err);
         setPolling(false);
       }
     }, 2500);
@@ -318,9 +335,9 @@ async function handleLoginSubmit(e) {
     }, 800);
 
     return () => {
-      mounted = false;
       clearInterval(pollInterval);
       clearInterval(progInterval);
+      mounted = false;
     };
   }, [polling, jobId]);
 
@@ -368,23 +385,23 @@ async function handleLoginSubmit(e) {
     setFiles((prev) => [...prev, ...arr]);
   }
 
+  // ---------- MAIN submit (minimal changes) ----------
   async function handleSubmit(e) {
     e.preventDefault();
     if (!files.length) return showToast("Please upload at least one image.");
-  
+
     setIsUploading(true);
     setOutputs([]);
     setProgress(0);
     setJobId(null);
     setJobStatus(null);
-  
+
     try {
       // compress each file (parallel)
       showToast("Compressing images…", "info", 1500);
       const compressed = await Promise.all(
         files.map(async (f) => {
           try {
-            // adjust maxWidth/quality if you want smaller size
             const small = await shrinkFile(f.file, 1024, 0.8);
             return { ...f, file: small, size: small.size || f.size };
           } catch (err) {
@@ -393,7 +410,7 @@ async function handleLoginSubmit(e) {
           }
         })
       );
-  
+
       // optional: check total size and warn/stop if still too big
       const total = compressed.reduce((s, x) => s + (x.file?.size || 0), 0);
       const maxTotalAllowed = 20 * 1024 * 1024; // 20MB safe target
@@ -402,8 +419,10 @@ async function handleLoginSubmit(e) {
         setIsUploading(false);
         return;
       }
-  
+
       // build FormData
+      // NOTE: worker expects single file field named 'file' (multer.single('file'))
+      // We'll send only the first compressed file to worker to avoid changing UI layout.
       const fd = new FormData();
       fd.append("imageSize", imageSize);
       fd.append("prompt", prompt);
@@ -411,38 +430,68 @@ async function handleLoginSubmit(e) {
       fd.append("promptStrength", String(promptStrength));
       if (selectedModel) fd.append("modelId", selectedModel);
       fd.append("tokenType", tokenType);
-  
-      for (const item of compressed) {
-        fd.append("files", item.file, item.file.name || "upload.jpg");
-      }
-  
+
+      // add user session if exists
       const token = localStorage.getItem("sogni_token");
       const username = localStorage.getItem("sogni_username");
       const refreshToken = localStorage.getItem("sogni_refresh");
-  
+
       if (!token || !username) {
         showToast("Harap login terlebih dahulu sebelum generate.");
         setShowLoginModal(true);
         setIsUploading(false);
         return;
       }
-  
+
       fd.append("userToken", token);
       fd.append("username", username);
       if (refreshToken) fd.append("refreshToken", refreshToken);
-  
-      // use fetch for simplicity; keep simple progress UI via fake progress loop already in code
-      const res = await fetch("https://memories-production-85c0.up.railway.app", { method: "POST", body: fd });
-      let data;
-      try { data = await res.json(); } catch (err) { data = null; }
-  
-      if (!res.ok) {
-        // try to show helpful message
-        const errMsg = (data && (data.error || data.detail)) || `Upload failed (status ${res.status})`;
+
+      // Append files:
+      // - If WORKER_URL provided -> send only first file as 'file'
+      // - Else fallback to original 'files' multi append to /api/upload
+      let res, data;
+      if (WORKER_URL) {
+        const first = compressed[0];
+        if (!first || !first.file) {
+          throw new Error("No file to upload");
+        }
+        const fdWorker = new FormData();
+        fdWorker.append("prompt", prompt);
+        fdWorker.append("file", first.file, first.file.name || "upload.jpg");
+        // include some useful fields
+        fdWorker.append("strength", String(strength));
+        fdWorker.append("promptStrength", String(promptStrength));
+        if (selectedModel) fdWorker.append("modelId", selectedModel);
+        if (token) fdWorker.append("userToken", token);
+        if (username) fdWorker.append("username", username);
+        if (refreshToken) fdWorker.append("refreshToken", refreshToken);
+
+        // call worker
+        res = await fetch(`${WORKER_URL.replace(/\/+$/, "")}/job`, { method: "POST", body: fdWorker });
+        try { data = await res.json(); } catch (err) { data = null; }
+      } else {
+        // original flow to /api/upload (Vercel)
+        for (const item of compressed) {
+          fd.append("files", item.file, item.file.name || "upload.jpg");
+        }
+        res = await fetch("/api/upload", { method: "POST", body: fd });
+        try { data = await res.json(); } catch (err) { data = null; }
+      }
+
+      if (!res || !res.ok) {
+        const errMsg = (data && (data.error || data.detail)) || `Upload failed (status ${res ? res.status : "no-response"})`;
         throw new Error(errMsg);
       }
-  
-      setJobId(data.jobId);
+
+      // get jobId
+      const returnedJobId = data?.jobId || data?.id || data?.projectId || null;
+      if (!returnedJobId) {
+        console.warn("upload response missing jobId:", data);
+        throw new Error("No jobId returned from server. Check server logs.");
+      }
+
+      setJobId(returnedJobId);
       setPolling(true);
       setJobStatus("queued");
       showToast("Upload accepted — job queued", "success");
@@ -453,7 +502,6 @@ async function handleLoginSubmit(e) {
       setIsUploading(false);
     }
   }
-  
 
   // Modal
   const openModal = (i) => {
@@ -467,7 +515,6 @@ async function handleLoginSubmit(e) {
     setZoom(1);
     document.body.style.overflow = "";
   };
-
 
   return (
     <>
@@ -540,64 +587,48 @@ async function handleLoginSubmit(e) {
         height: 80px;
         object-fit: cover;
         border: 1px solid #aaa;
-
       }.progress-wrapper {
         position: relative;
         margin-top: 8px;
         height: 90px;
       }
-      
-      
-      
       .progress-container {
         bottom: 0; 
         height: 10px;
         border-radius: 5px;
-        overflow: visible; /* ubah dari hidden */
+        overflow: visible;
         position: relative;
       }
-      
-      
       .progress-bar {
         height: 100%;
         background: linear-gradient(to right, #00b4ff, #006aff);
         transition: width 0.4s ease;
       }
-      
-
       @keyframes push {
         0%, 100% { transform: translateY(-50%) scaleX(1); }
         50% { transform: translateY(-48%) scaleX(1.02); }
       }
-
-      
       .progress-character {
         animation: push 0.6s ease-in-out infinite;
         position: relative;
-        bottom: 0; /* biar sejajar sama bar */
+        bottom: 0;
         left: 0;
         width: 42px;
         height: 42px;
-        transform: translate(-80%, -10%); /* dorong dikit ke kiri dan sejajar vertikal */
+        transform: translate(-80%, -10%);
         transition: left 0.4s ease;
         image-rendering: pixelated;
-        z-index: 5; /* lebih kecil dari bar, biar dia di depan tapi bar-nya kelihatan */
+        z-index: 5;
       }
-      
-      
       .progress-text-follow {
         position: absolute;
-        top: 15px; /* atau sesuaikan biar pas di bawah karakter */
+        top: 15px;
         font-size: 12px;
         color: #003399;
         font-weight: bold;
         text-shadow: 1px 1px #fff;
         transition: left 0.4s ease;
       }
-      
-      
-      
-      
       .preview-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -652,99 +683,93 @@ async function handleLoginSubmit(e) {
       }
       `}</style>
 
-{/* === NAVBAR === */}
-<div
-  style={{
-    width: "100%",
-    height: 52,
-    background: "linear-gradient(to bottom, #0078d7, #005fb8)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "0 28px 0 0px",
-    color: "white",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
-    position: "fixed",
-    top: 0,
-    left: 0,
-    zIndex: 1000,
-  }}
->
-  {/* Menu kiri */}
-  <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-    <span
-      style={{
-        fontWeight: 700,
-        fontSize: 16,
-        letterSpacing: 0.5,
-        textShadow: "1px 1px 1px rgba(0,0,0,0.4)",
-        marginLeft: "20px",
-      }}
-    >
-      🪄 Sogni Harmonizer
-    </span>
+      {/* === NAVBAR === */}
+      <div
+        style={{
+          width: "100%",
+          height: 52,
+          background: "linear-gradient(to bottom, #0078d7, #005fb8)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 28px 0 0px",
+          color: "white",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          zIndex: 1000,
+        }}
+      >
+        {/* Menu kiri */}
+        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+          <span
+            style={{
+              fontWeight: 700,
+              fontSize: 16,
+              letterSpacing: 0.5,
+              textShadow: "1px 1px 1px rgba(0,0,0,0.4)",
+              marginLeft: "20px",
+            }}
+          >
+            🪄 Sogni Harmonizer
+          </span>
 
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 18,
-        fontSize: 14,
-        fontWeight: 500,
-        cursor: "pointer",
-        marginLeft: "20px",
-      }}
-    >
-      <span style={{ textDecoration: "underline" }} onClick={() => router.push("/")}>Batch</span>
-      <span onClick={() => router.push("/edit")}>Edit</span>
-      <span onClick={() => router.push("/nft-layer")}>Nft Layering</span>
-      <span onClick={() => router.push("/faq")}>Blog</span>
-      
-      
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 18,
+              fontSize: 14,
+              fontWeight: 500,
+              cursor: "pointer",
+              marginLeft: "20px",
+            }}
+          >
+            <span style={{ textDecoration: "underline" }} onClick={() => router.push("/")}>Batch</span>
+            <span onClick={() => router.push("/edit")}>Edit</span>
+            <span onClick={() => router.push("/nft-layer")}>Nft Layering</span>
+            <span onClick={() => router.push("/faq")}>Blog</span>
+          </div>
+        </div>
 
-    </div>
-  </div>
-
-  {/* Login button di kanan */}
-  <div
-    onClick={() => {
-  if (isLoggedIn) {
-    setShowLogoutConfirm(true); // munculin modal konfirmasi
-  } else {
-    setShowLoginModal(true);
-  }
-}}
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 8,
-      background: "rgba(255,255,255,0.95)",
-      borderRadius: 20,
-      padding: "4px 12px",
-      cursor: "pointer",
-      color: "#222",
-      fontWeight: 600,
-      transition: "all 0.2s ease",
-      marginRight: "20px",
-    }}
-  >
-    <div
-      style={{
-        width: 12,
-        height: 12,
-        borderRadius: "50%",
-        backgroundColor: isLoggedIn ? "#00d26a" : "#ff3b30",
-        boxShadow: isLoggedIn
-          ? "0 0 6px 2px rgba(0,210,106,0.6)"
-          : "0 0 6px 2px rgba(255,59,48,0.5)",
-      }}
-    />
-    {isLoggedIn ? "Logout" : "Login"}
-  </div>
-</div>
-
-
-
+        {/* Login button di kanan */}
+        <div
+          onClick={() => {
+            if (isLoggedIn) {
+              setShowLogoutConfirm(true);
+            } else {
+              setShowLoginModal(true);
+            }
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            background: "rgba(255,255,255,0.95)",
+            borderRadius: 20,
+            padding: "4px 12px",
+            cursor: "pointer",
+            color: "#222",
+            fontWeight: 600,
+            transition: "all 0.2s ease",
+            marginRight: "20px",
+          }}
+        >
+          <div
+            style={{
+              width: 12,
+              height: 12,
+              borderRadius: "50%",
+              backgroundColor: isLoggedIn ? "#00d26a" : "#ff3b30",
+              boxShadow: isLoggedIn
+                ? "0 0 6px 2px rgba(0,210,106,0.6)"
+                : "0 0 6px 2px rgba(255,59,48,0.5)",
+            }}
+          />
+          {isLoggedIn ? "Logout" : "Login"}
+        </div>
+      </div>
 
       <div className="windows-layout">
         {/* Left panel */}
@@ -775,15 +800,12 @@ async function handleLoginSubmit(e) {
               </select>
 
               <label>Image Size</label>
-<select
-  value={imageSize}
-  onChange={(e) => setImageSize(e.target.value)}
->
-  <option value="1024x1024">Square (1:1)</option>
-  <option value="1280x720">HD (16:9)</option>
-  <option value="960x1280">Portrait (3:4)</option>
-  <option value="1920x1080">Full HD (16:9)</option>
-</select>
+              <select value={imageSize} onChange={(e) => setImageSize(e.target.value)}>
+                <option value="1024x1024">Square (1:1)</option>
+                <option value="1280x720">HD (16:9)</option>
+                <option value="960x1280">Portrait (3:4)</option>
+                <option value="1920x1080">Full HD (16:9)</option>
+              </select>
 
               <label>Upload Images</label>
               <div ref={dropRef} className="upload-controls">
@@ -816,34 +838,31 @@ async function handleLoginSubmit(e) {
             <div>Job ID: {jobId || "-"}</div>
             <div>Status: {jobStatus || "-"}</div>
             {polling && (
-  <div className="progress-wrapper">
-    <div className="progress-container">
-      <div
-        className="progress-bar"
-        style={{ width: `${progress}%` }}
-      ></div>
-      <img
-        src="/assets/chibi.png"
-        alt="chibi pushing"
-        className="progress-character"
-        style={{
-          left: `calc(${progress}% - 29px)`, // posisi geser dari bar
-        }}
-        
-      />
-      <div
-        className="progress-text-follow"
-        style={{
-          left: `calc(${progress}% - 20px)`, // posisinya ngikut bar juga
-        }}
-      >
-        {Math.floor(progress)}%
-      </div>
-    </div>
-    
-  </div>
-)}
-
+              <div className="progress-wrapper">
+                <div className="progress-container">
+                  <div
+                    className="progress-bar"
+                    style={{ width: `${progress}%` }}
+                  ></div>
+                  <img
+                    src="/assets/chibi.png"
+                    alt="chibi pushing"
+                    className="progress-character"
+                    style={{
+                      left: `calc(${progress}% - 29px)`,
+                    }}
+                  />
+                  <div
+                    className="progress-text-follow"
+                    style={{
+                      left: `calc(${progress}% - 20px)`,
+                    }}
+                  >
+                    {Math.floor(progress)}%
+                  </div>
+                </div>
+              </div>
+            )}
 
             {outputs.length > 0 && (
               <>
@@ -861,322 +880,317 @@ async function handleLoginSubmit(e) {
         </div>
       </div>
 
-
-{/* Login Modal */}
-{showLoginModal && (
-  <div
-    onClick={(e) => e.target === e.currentTarget && setShowLoginModal(false)}
-    style={{
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,0.4)",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      zIndex: 1000,
-    }}
-  >
-    <div
-      style={{
-        background: "#fff",
-        padding: 20,
-        borderRadius: 8,
-        width: 300,
-        boxShadow: "0 4px 15px rgba(0,0,0,0.3)",
-      }}
-    >
-      <h3 style={{ marginBottom: 10, textAlign: "center" }}>🔐 Login ke Sogni</h3>
-      <form onSubmit={handleLoginSubmit}>
-        <label>Username</label>
-        <input
-          type="text"
-          value={usernameInput}
-          onChange={(e) => setUsernameInput(e.target.value)}
+      {/* Login Modal */}
+      {showLoginModal && (
+        <div
+          onClick={(e) => e.target === e.currentTarget && setShowLoginModal(false)}
           style={{
-            width: "100%",
-            marginBottom: 10,
-            padding: "6px 8px",
-            border: "1px solid #aaa",
-            borderRadius: 4,
-          }}
-        />
-        <label>Password</label>
-        <input
-          type="password"
-          value={passwordInput}
-          onChange={(e) => setPasswordInput(e.target.value)}
-          style={{
-            width: "100%",
-            marginBottom: 14,
-            padding: "6px 8px",
-            border: "1px solid #aaa",
-            borderRadius: 4,
-          }}
-        />
-        <button
-          type="submit"
-          disabled={loginLoading}
-          style={{
-            width: "100%",
-            padding: "6px 0",
-            background: "#4b7cff",
-            color: "white",
-            border: "none",
-            borderRadius: 4,
-            fontWeight: "bold",
-            cursor: "pointer",
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 1000,
           }}
         >
-          {loginLoading ? "Logging in..." : "Login"}
-        </button>
-      </form>
-    </div>
-  </div>
-)}
-
-
-{/* Modal */}
-{modalOpen && outputs[modalIndex] && (
-  <div
-    className="overlay"
-    onClick={(e) => e.target === e.currentTarget && closeModal()}
-  >
-    <div
-      className="xp-window"
-      style={{
-        width: "min(85vw, 700px)",
-        height: "min(85vh, 600px)",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <div
-        className="viewer-topbar"
-        style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
-      >
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <button
-            className="btn"
-            title="Previous"
-            onClick={(e) => {
-              e.stopPropagation();
-              setModalIndex((i) => (i === 0 ? outputs.length - 1 : i - 1));
+          <div
+            style={{
+              background: "#fff",
+              padding: 20,
+              borderRadius: 8,
+              width: 300,
+              boxShadow: "0 4px 15px rgba(0,0,0,0.3)",
             }}
           >
-            ⬅️
-          </button>
-          <button
-            className="btn"
-            title="Next"
-            onClick={(e) => {
-              e.stopPropagation();
-              setModalIndex((i) => (i === outputs.length - 1 ? 0 : i + 1));
-            }}
-          >
-            ➡️
-          </button>
-          <div style={{ width: 8 }} />
-          <small style={{ color: "#fff", marginLeft: 6 }}>
-            {modalIndex + 1} / {outputs.length}
-          </small>
+            <h3 style={{ marginBottom: 10, textAlign: "center" }}>🔐 Login ke Sogni</h3>
+            <form onSubmit={handleLoginSubmit}>
+              <label>Username</label>
+              <input
+                type="text"
+                value={usernameInput}
+                onChange={(e) => setUsernameInput(e.target.value)}
+                style={{
+                  width: "100%",
+                  marginBottom: 10,
+                  padding: "6px 8px",
+                  border: "1px solid #aaa",
+                  borderRadius: 4,
+                }}
+              />
+              <label>Password</label>
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                style={{
+                  width: "100%",
+                  marginBottom: 14,
+                  padding: "6px 8px",
+                  border: "1px solid #aaa",
+                  borderRadius: 4,
+                }}
+              />
+              <button
+                type="submit"
+                disabled={loginLoading}
+                style={{
+                  width: "100%",
+                  padding: "6px 0",
+                  background: "#4b7cff",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 4,
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                }}
+              >
+                {loginLoading ? "Logging in..." : "Login"}
+              </button>
+            </form>
+          </div>
         </div>
+      )}
 
-        <div style={{ display: "flex", gap: 6 }}>
-  <button
-    className="btn"
-    title="Save Image"
-    onClick={(e) => {
-      e.stopPropagation();
-      const link = document.createElement("a");
-      link.href = outputs[modalIndex].url;
-      link.download = `sogni_harmonizer_${modalIndex + 1}.png`;
-      link.click();
-    }}
-  >
-    💾 Save
-  </button>
+      {/* Modal */}
+      {modalOpen && outputs[modalIndex] && (
+        <div
+          className="overlay"
+          onClick={(e) => e.target === e.currentTarget && closeModal()}
+        >
+          <div
+            className="xp-window"
+            style={{
+              width: "min(85vw, 700px)",
+              height: "min(85vh, 600px)",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <div
+              className="viewer-topbar"
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+            >
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <button
+                  className="btn"
+                  title="Previous"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setModalIndex((i) => (i === 0 ? outputs.length - 1 : i - 1));
+                  }}
+                >
+                  ⬅️
+                </button>
+                <button
+                  className="btn"
+                  title="Next"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setModalIndex((i) => (i === outputs.length - 1 ? 0 : i + 1));
+                  }}
+                >
+                  ➡️
+                </button>
+                <div style={{ width: 8 }} />
+                <small style={{ color: "#fff", marginLeft: 6 }}>
+                  {modalIndex + 1} / {outputs.length}
+                </small>
+              </div>
 
-  {/* NEW: Save all outputs */}
-  <button
-    className="btn"
-    title="Save All Outputs"
-    onClick={async (e) => {
-      e.stopPropagation();
-      const zip = new JSZip();
-      const folder = zip.folder("sogni_outputs");
-      for (let i = 0; i < outputs.length; i++) {
-        try {
-          const res = await fetch(outputs[i].url);
-          const blob = await res.blob();
-          folder.file(`output_${i + 1}.png`, blob);
-        } catch (err) {
-          console.error("Failed to add image:", err);
-        }
-      }
-      const blobZip = await zip.generateAsync({ type: "blob" });
-      saveAs(blobZip, "sogni_outputs.zip");
-    }}
-  >
-    📦 Save All
-  </button>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  className="btn"
+                  title="Save Image"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const link = document.createElement("a");
+                    link.href = outputs[modalIndex].url;
+                    link.download = `sogni_harmonizer_${modalIndex + 1}.png`;
+                    link.click();
+                  }}
+                >
+                  💾 Save
+                </button>
 
-  <button
-    className="btn"
-    onClick={(e) => {
-      e.stopPropagation();
-      closeModal();
-    }}
-  >
-    ✕
-  </button>
-</div>
+                {/* NEW: Save all outputs */}
+                <button
+                  className="btn"
+                  title="Save All Outputs"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    const zip = new JSZip();
+                    const folder = zip.folder("sogni_outputs");
+                    for (let i = 0; i < outputs.length; i++) {
+                      try {
+                        const res = await fetch(outputs[i].url);
+                        const blob = await res.blob();
+                        folder.file(`output_${i + 1}.png`, blob);
+                      } catch (err) {
+                        console.error("Failed to add image:", err);
+                      }
+                    }
+                    const blobZip = await zip.generateAsync({ type: "blob" });
+                    saveAs(blobZip, "sogni_outputs.zip");
+                  }}
+                >
+                  📦 Save All
+                </button>
 
-      </div>
+                <button
+                  className="btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeModal();
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
 
-      {/* ZoomableImage remounts when key changes -> resets zoom/offset */}
-      <ZoomableImage key={outputs[modalIndex].url} src={outputs[modalIndex].url} />
+            {/* ZoomableImage remounts when key changes -> resets zoom/offset */}
+            <ZoomableImage key={outputs[modalIndex].url} src={outputs[modalIndex].url} />
 
-      <div className="viewer-footer" style={{ textAlign: "center", padding: 6 }}>
-        {outputs[modalIndex].name || `output ${modalIndex + 1}`}
-      </div>
-    </div>
-    
-  </div>
-)}
-<Toast toast={toast} />
-{/* === LOGOUT CONFIRMATION MODAL (RETRO STYLE) === */}
-{showLogoutConfirm && (
-  <div
-    style={{
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,0.35)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 3000,
-      backdropFilter: "blur(2px)",
-      animation: "fadeIn 0.3s ease",
-      fontFamily: "'MS Sans Serif', 'Tahoma', sans-serif",
-    }}
-  >
-    <div
-      style={{
-        background: "#C0C0C0",
-        border: "2px solid #000",
-        boxShadow: "3px 3px 0 #000",
-        borderTopColor: "#fff",
-        borderLeftColor: "#fff",
-        width: "320px",
-        padding: "12px",
-        color: "#000",
-        animation: "popIn 0.25s ease",
-      }}
-    >
-      {/* === Title bar === */}
-      <div
-        style={{
-          background: "linear-gradient(90deg, #000080, #0000cd)",
-          color: "#fff",
-          padding: "4px 8px",
-          fontWeight: "bold",
-          fontSize: "13px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "10px",
-        }}
-      >
-        <span>Confirm Exit</span>
-        <button
-          onClick={() => setShowLogoutConfirm(false)}
+            <div className="viewer-footer" style={{ textAlign: "center", padding: 6 }}>
+              {outputs[modalIndex].name || `output ${modalIndex + 1}`}
+            </div>
+          </div>
+        </div>
+      )}
+      <Toast toast={toast} />
+      {/* === LOGOUT CONFIRMATION MODAL (RETRO STYLE) === */}
+      {showLogoutConfirm && (
+        <div
           style={{
-            background: "#c0c0c0",
-            border: "2px outset #fff",
-            fontWeight: "bold",
-            width: 18,
-            height: 18,
-            textAlign: "center",
-            lineHeight: "13px",
-            cursor: "pointer",
-            color: "#000",
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 3000,
+            backdropFilter: "blur(2px)",
+            animation: "fadeIn 0.3s ease",
+            fontFamily: "'MS Sans Serif', 'Tahoma', sans-serif",
           }}
         >
-          ×
-        </button>
-      </div>
+          <div
+            style={{
+              background: "#C0C0C0",
+              border: "2px solid #000",
+              boxShadow: "3px 3px 0 #000",
+              borderTopColor: "#fff",
+              borderLeftColor: "#fff",
+              width: "320px",
+              padding: "12px",
+              color: "#000",
+              animation: "popIn 0.25s ease",
+            }}
+          >
+            {/* === Title bar === */}
+            <div
+              style={{
+                background: "linear-gradient(90deg, #000080, #0000cd)",
+                color: "#fff",
+                padding: "4px 8px",
+                fontWeight: "bold",
+                fontSize: "13px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "10px",
+              }}
+            >
+              <span>Confirm Exit</span>
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                style={{
+                  background: "#c0c0c0",
+                  border: "2px outset #fff",
+                  fontWeight: "bold",
+                  width: 18,
+                  height: 18,
+                  textAlign: "center",
+                  lineHeight: "13px",
+                  cursor: "pointer",
+                  color: "#000",
+                }}
+              >
+                ×
+              </button>
+            </div>
 
-      {/* === Content === */}
-      <div style={{ fontSize: "13px", marginBottom: "20px" }}>
-        <p style={{ marginBottom: "8px" }}>Yakin mau logout, bre?</p>
-        <p style={{ margin: 0 }}>Semua sesi bakal ditutup.</p>
-      </div>
+            {/* === Content === */}
+            <div style={{ fontSize: "13px", marginBottom: "20px" }}>
+              <p style={{ marginBottom: "8px" }}>Yakin mau logout, bre?</p>
+              <p style={{ margin: 0 }}>Semua sesi bakal ditutup.</p>
+            </div>
 
-      {/* === Buttons === */}
-      <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
-        <button
-          onClick={() => {
-            localStorage.clear();
-            setIsLoggedIn(false);
-            setShowLogoutConfirm(false);
-            showToast("👋 Logout sukses!", "success");
-          }}
-          style={{
-            background: "#c0c0c0",
-            border: "2px outset #fff",
-            padding: "4px 20px",
-            fontSize: "13px",
-            cursor: "pointer",
-            fontWeight: "bold",
-          }}
-          onMouseDown={(e) =>
-            (e.target.style.border = "2px inset #fff")
-          }
-          onMouseUp={(e) =>
-            (e.target.style.border = "2px outset #fff")
-          }
-        >
-          Yes
-        </button>
+            {/* === Buttons === */}
+            <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
+              <button
+                onClick={() => {
+                  localStorage.clear();
+                  setIsLoggedIn(false);
+                  setShowLogoutConfirm(false);
+                  showToast("👋 Logout sukses!", "success");
+                }}
+                style={{
+                  background: "#c0c0c0",
+                  border: "2px outset #fff",
+                  padding: "4px 20px",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                }}
+                onMouseDown={(e) =>
+                  (e.target.style.border = "2px inset #fff")
+                }
+                onMouseUp={(e) =>
+                  (e.target.style.border = "2px outset #fff")
+                }
+              >
+                Yes
+              </button>
 
-        <button
-          onClick={() => setShowLogoutConfirm(false)}
-          style={{
-            background: "#c0c0c0",
-            border: "2px outset #fff",
-            padding: "4px 20px",
-            fontSize: "13px",
-            cursor: "pointer",
-            fontWeight: "bold",
-          }}
-          onMouseDown={(e) =>
-            (e.target.style.border = "2px inset #fff")
-          }
-          onMouseUp={(e) =>
-            (e.target.style.border = "2px outset #fff")
-          }
-        >
-          Cancel
-        </button>
-      </div>
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                style={{
+                  background: "#c0c0c0",
+                  border: "2px outset #fff",
+                  padding: "4px 20px",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                }}
+                onMouseDown={(e) =>
+                  (e.target.style.border = "2px inset #fff")
+                }
+                onMouseUp={(e) =>
+                  (e.target.style.border = "2px outset #fff")
+                }
+              >
+                Cancel
+              </button>
+            </div>
 
-      {/* === Animations === */}
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes popIn {
-          from { opacity: 0; transform: scale(0.95); }
-          to { opacity: 1; transform: scale(1); }
-        }
-      `}</style>
-    </div>
-  </div>
-)}
+            {/* === Animations === */}
+            <style>{`
+              @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+              }
+              @keyframes popIn {
+                from { opacity: 0; transform: scale(0.95); }
+                to { opacity: 1; transform: scale(1); }
+              }
+            `}</style>
+          </div>
+        </div>
+      )}
 
-<Footer />
-
+      <Footer />
     </>
   );
 }
