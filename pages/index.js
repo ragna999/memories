@@ -4,6 +4,51 @@ import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import Footer from "@/components/Footer";
 
+// compress util (paste after imports)
+async function shrinkFile(file, maxWidth = 1024, quality = 0.8) {
+  // kalau bukan image, return original
+  if (!file.type || !file.type.startsWith("image/")) return file;
+
+  // create image element
+  const img = await new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const imgEl = new Image();
+    imgEl.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(imgEl);
+    };
+    imgEl.onerror = (e) => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Image load failed"));
+    };
+    imgEl.src = url;
+  });
+
+  const scale = Math.min(1, maxWidth / img.width);
+  const cw = Math.round(img.width * scale);
+  const ch = Math.round(img.height * scale);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = cw;
+  canvas.height = ch;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, cw, ch);
+
+  // Convert to blob (jpeg) with quality
+  const blob = await new Promise((res) =>
+    canvas.toBlob(res, "image/jpeg", quality)
+  );
+
+  // if conversion failed, fallback to original
+  if (!blob) return file;
+
+  // Create a File instance so FormData works same
+  const newFile = new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), {
+    type: "image/jpeg",
+  });
+
+  return newFile;
+}
 
 // --- Paste this after imports, before Home() ---
 function ZoomableImage({ src }) {
@@ -326,12 +371,39 @@ async function handleLoginSubmit(e) {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!files.length) return showToast("Please upload at least one image.");
+  
     setIsUploading(true);
     setOutputs([]);
     setProgress(0);
     setJobId(null);
     setJobStatus(null);
+  
     try {
+      // compress each file (parallel)
+      showToast("Compressing images…", "info", 1500);
+      const compressed = await Promise.all(
+        files.map(async (f) => {
+          try {
+            // adjust maxWidth/quality if you want smaller size
+            const small = await shrinkFile(f.file, 1024, 0.8);
+            return { ...f, file: small, size: small.size || f.size };
+          } catch (err) {
+            console.warn("shrinkFile failed, using original:", err);
+            return f;
+          }
+        })
+      );
+  
+      // optional: check total size and warn/stop if still too big
+      const total = compressed.reduce((s, x) => s + (x.file?.size || 0), 0);
+      const maxTotalAllowed = 20 * 1024 * 1024; // 20MB safe target
+      if (total > maxTotalAllowed) {
+        showToast(`Total upload ${Math.round(total/1024/1024)}MB — too big. Try smaller images.`, "error");
+        setIsUploading(false);
+        return;
+      }
+  
+      // build FormData
       const fd = new FormData();
       fd.append("imageSize", imageSize);
       fd.append("prompt", prompt);
@@ -339,33 +411,49 @@ async function handleLoginSubmit(e) {
       fd.append("promptStrength", String(promptStrength));
       if (selectedModel) fd.append("modelId", selectedModel);
       fd.append("tokenType", tokenType);
-      for (const f of files) fd.append("files", f.file, f.name);
+  
+      for (const item of compressed) {
+        fd.append("files", item.file, item.file.name || "upload.jpg");
+      }
+  
       const token = localStorage.getItem("sogni_token");
-const username = localStorage.getItem("sogni_username");
-const refreshToken = localStorage.getItem("sogni_refresh");
-
-if (!token || !username) {
-  showToast("Harap login terlebih dahulu sebelum generate.");
-  setShowLoginModal(true);
-  return;
-}
-
-fd.append("userToken", token);
-fd.append("username", username);
-if (refreshToken) fd.append("refreshToken", refreshToken);
-
+      const username = localStorage.getItem("sogni_username");
+      const refreshToken = localStorage.getItem("sogni_refresh");
+  
+      if (!token || !username) {
+        showToast("Harap login terlebih dahulu sebelum generate.");
+        setShowLoginModal(true);
+        setIsUploading(false);
+        return;
+      }
+  
+      fd.append("userToken", token);
+      fd.append("username", username);
+      if (refreshToken) fd.append("refreshToken", refreshToken);
+  
+      // use fetch for simplicity; keep simple progress UI via fake progress loop already in code
       const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
+      let data;
+      try { data = await res.json(); } catch (err) { data = null; }
+  
+      if (!res.ok) {
+        // try to show helpful message
+        const errMsg = (data && (data.error || data.detail)) || `Upload failed (status ${res.status})`;
+        throw new Error(errMsg);
+      }
+  
       setJobId(data.jobId);
       setPolling(true);
       setJobStatus("queued");
+      showToast("Upload accepted — job queued", "success");
     } catch (err) {
-      showToast(err.message);
+      console.error("upload error:", err);
+      showToast("❌ " + (err.message || "Upload failed"));
     } finally {
       setIsUploading(false);
     }
   }
+  
 
   // Modal
   const openModal = (i) => {
