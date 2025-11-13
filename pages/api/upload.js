@@ -1,9 +1,11 @@
-// pages/api/upload.js  (PATCHED quick-fix)
-import formidable from 'formidable';
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-import { v4 as uuidv4 } from 'uuid';
+// pages/api/upload.js
+import formidable from "formidable";
+import fs from "fs";
+import path from "path";
+import os from "os";
+import sharp from "sharp";
+import { v4 as uuidv4 } from "uuid";
+import { SogniClient } from "@sogni-ai/sogni-client";
 
 export const config = { api: { bodyParser: false } };
 
@@ -11,108 +13,107 @@ function parseForm(req) {
   return new Promise((resolve, reject) => {
     const form = formidable({
       keepExtensions: true,
-      multiples: true,
-      maxFileSize: 1000 * 1024 * 1024,
+      multiples: false,
+      maxFileSize: 60 * 1024 * 1024,
     });
-
-    form.parse(req, (err, fields, files) => {
-      if (err) return reject(err);
-      resolve({ fields, files });
-    });
+    form.parse(req, (err, fields, files) => (err ? reject(err) : resolve({ fields, files })));
   });
 }
 
-function safeMkdirSync(dir) {
+async function createClientAndAuth({ username, userToken, refreshToken }) {
+  const appId = process.env.SOGNI_APPID || "gimlyy";
+  const network = process.env.SOGNI_NETWORK || "fast";
+  const client = await SogniClient.createInstance({ appId, network });
+
+  // try restoring user session if token provided (worker used client.account.setToken style)
   try {
-    fs.mkdirSync(dir, { recursive: true });
+    if (username && (userToken || refreshToken)) {
+      if (typeof client.account?.setToken === "function") {
+        await client.account.setToken(username, { token: userToken, refreshToken });
+        client.account.session = { token: userToken, refreshToken };
+      } else if (typeof client.account?.setSession === "function") {
+        // fallback naming
+        await client.account.setSession({ username, token: userToken, refreshToken });
+      }
+    }
   } catch (e) {
-    // ignore - we'll handle missing dir later
-    console.warn('safeMkdirSync failed:', e && e.message);
+    console.warn("Failed to set session token (non-fatal):", e?.message || e);
   }
+
+  // don't force connect here; some SDKs will open ws lazily on project.create
+  return client;
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    let parsed;
+    const { fields, files } = await parseForm(req);
+    const prompt = (fields.prompt || "").toString();
+    if (!prompt) return res.status(400).json({ error: "prompt required" });
+
+    // optional user creds for Sogni session
+    const username = fields.username ? String(fields.username) : null;
+    const userToken = fields.userToken ? String(fields.userToken) : null;
+    const refreshToken = fields.refreshToken ? String(fields.refreshToken) : null;
+
+    // pick file
+    const fileObj = (files?.file && !Array.isArray(files.file)) ? files.file : Object.values(files || {})[0];
+    if (!fileObj) return res.status(400).json({ error: "file is required" });
+
+    // read buffer and resize (to reasonable size)
+    const tmpPath = fileObj.filepath || fileObj.path || fileObj.tempFilePath;
+    if (!tmpPath || !fs.existsSync(tmpPath)) return res.status(400).json({ error: "uploaded file missing" });
+
+    const buff = fs.readFileSync(tmpPath);
+    // resize via sharp to 768-1024 square-ish (adjust to your model needs)
+    const resized = await sharp(buff).resize(1024, 1024, { fit: "cover" }).png().toBuffer();
+
+    // create Sogni client and auth (if provided)
+    let client;
     try {
-      parsed = await parseForm(req);
-    } catch (err) {
-      console.error('/api/upload parseForm error', err);
-      const msg = err && (err.message || String(err)) || 'upload parse error';
-      if (/maxTotalFileSize|maxFileSize|PayloadTooLarge|exceeded/i.test(msg)) {
-        return res.status(413).json({ error: 'Uploaded file(s) too large', detail: msg });
-      }
-      return res.status(400).json({ error: msg });
+      client = await createClientAndAuth({ username, userToken, refreshToken });
+    } catch (e) {
+      console.error("Sogni client init failed:", e?.message || e);
+      return res.status(502).json({ error: "Failed to init Sogni client", detail: e?.message || String(e) });
     }
 
-    const { fields, files } = parsed;
-    const prompt = (fields.prompt || '').toString().trim();
-    if (!prompt) return res.status(400).json({ error: 'prompt is required' });
-
-    const jobId = uuidv4();
-
-    // === CHANGE: use platform tmp dir, not process.cwd() (Vercel's /var/task is readonly) ===
-    const baseTmp = path.join(os.tmpdir(), 'memories'); // /tmp/memories on most systems
-    safeMkdirSync(baseTmp);
-    const uploadDir = path.join(baseTmp, 'uploads', jobId);
-    safeMkdirSync(uploadDir);
-
-    // normalize incoming files
-    let incoming = files.files || files.file || null;
-    if (!incoming) {
-      const keys = Object.keys(files || {});
-      if (keys.length === 0) return res.status(400).json({ error: 'No files uploaded' });
-      incoming = files[keys[0]];
-    }
-    const arr = Array.isArray(incoming) ? incoming : [incoming];
-    const savedPaths = [];
-
-    for (let i = 0; i < arr.length; i++) {
-      const f = arr[i];
-      const tempPath = f?.filepath || f?.path || f?.tempFilePath;
-      const origName = f?.originalFilename || f?.name || `file_${i}`;
-      if (!tempPath || !fs.existsSync(tempPath)) {
-        throw new Error(`Uploaded temp file missing for ${origName}`);
-      }
-      const safeName = origName.replace(/[^a-zA-Z0-9_.-]/g, '_');
-      const dest = path.join(uploadDir, safeName);
-      fs.copyFileSync(tempPath, dest);
-      try { fs.unlinkSync(tempPath); } catch (e) {}
-      savedPaths.push(dest);
-    }
-
-    const usernameRaw = Array.isArray(fields.username) ? fields.username[0] : fields.username;
-    const username = usernameRaw ? String(usernameRaw).trim() : null;
-
-    const userTokenRaw = Array.isArray(fields.userToken) ? fields.userToken[0] : fields.userToken;
-    const userToken = userTokenRaw ? String(userTokenRaw).trim() : null;
-
-    const job = {
-      jobId,
-      prompt,
-      files: savedPaths,
-      username,
-      userToken,
-      createdAt: Date.now(),
-      status: 'queued',
+    // build params (mirror what worker used)
+    const params = {
+      modelId: fields.modelId || undefined,
+      positivePrompt: prompt,
+      negativePrompt: fields.negativePrompt || "lowres, watermark, bad anatomy",
+      startingImage: resized,
+      startingImageStrength: Number(fields.strength ?? 0.55),
+      guidance: Number(fields.promptStrength ?? 7.5),
+      steps: Number(fields.steps ?? 20),
+      numberOfImages: Number(fields.count ?? 1) || 1,
+      outputFormat: "png",
+      sizePreset: "custom",
+      width: Number(fields.width || 1024),
+      height: Number(fields.height || 1024),
+      tokenType: fields.tokenType || (userToken ? "sogni" : undefined),
     };
 
-    // === CHANGE: store job metadata in tmp (quick fix). NOTE: /tmp is ephemeral on serverless
-    const jobsDir = path.join(baseTmp, 'jobs');
-    safeMkdirSync(jobsDir);
-    const jobFile = path.join(jobsDir, `${jobId}.json`);
-    fs.writeFileSync(jobFile, JSON.stringify(job, null, 2), 'utf8');
-
-    // return jobId immediately — worker (recommended) will pick it up.
-    return res.status(200).json({ jobId });
-  } catch (err) {
-    console.error('/api/upload error', err);
-    const msg = err && (err.message || String(err)) || 'upload failed';
-    if (/maxTotalFileSize|maxFileSize|PayloadTooLarge|exceeded/i.test(msg)) {
-      return res.status(413).json({ error: 'Uploaded file(s) too large', detail: msg });
+    // create project/job on Sogni
+    let project;
+    try {
+      project = await client.projects.create(params);
+    } catch (e) {
+      console.error("Sogni projects.create failed:", e?.message || e);
+      return res.status(502).json({ error: "Sogni create failed", detail: e?.message || String(e) });
+    } finally {
+      // cleanup uploaded tmp file
+      try { fs.unlinkSync(tmpPath); } catch {}
     }
-    return res.status(500).json({ error: msg });
+
+    // try to resolve an id to return
+    const jobId = project?.id || project?.projectId || project?.taskId || project?.jobId || (project && project?.meta?.id) || uuidv4();
+
+    // return jobId to frontend — frontend will poll /api/status?jobId=<jobId>
+    return res.status(200).json({ jobId, created: true });
+  } catch (err) {
+    console.error("/api/upload error:", err);
+    return res.status(500).json({ error: err?.message || String(err) });
   }
 }
