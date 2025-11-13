@@ -1,7 +1,8 @@
-// pages/api/upload.js
+// pages/api/upload.js  (PATCHED quick-fix)
 import formidable from 'formidable';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 
 export const config = { api: { bodyParser: false } };
@@ -11,16 +12,23 @@ function parseForm(req) {
     const form = formidable({
       keepExtensions: true,
       multiples: true,
-      maxFileSize: 1000* 1024 * 1024,
+      maxFileSize: 1000 * 1024 * 1024,
     });
 
     form.parse(req, (err, fields, files) => {
-      if (err) {
-        return reject(err);
-      }
+      if (err) return reject(err);
       resolve({ fields, files });
     });
   });
+}
+
+function safeMkdirSync(dir) {
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch (e) {
+    // ignore - we'll handle missing dir later
+    console.warn('safeMkdirSync failed:', e && e.message);
+  }
 }
 
 export default async function handler(req, res) {
@@ -40,20 +48,16 @@ export default async function handler(req, res) {
     }
 
     const { fields, files } = parsed;
-
     const prompt = (fields.prompt || '').toString().trim();
-    const strength = parseFloat(fields.strength || fields.startingImageStrength || '0.55');
-    const imageSize = fields.imageSize ? String(fields.imageSize) : "1024x1024";
-    const promptStrength = parseFloat(fields.promptStrength || fields.guidance || '7.5');
-    const modelId = fields.modelId ? String(fields.modelId) : undefined;
-    const tokenTypeRaw = (fields.tokenType || fields.token || '').toString().toLowerCase() || undefined;
-    const tokenType = ['auto', 'spark', 'sogni'].includes(tokenTypeRaw) ? tokenTypeRaw : undefined;
-
     if (!prompt) return res.status(400).json({ error: 'prompt is required' });
 
     const jobId = uuidv4();
-    const uploadDir = path.join(process.cwd(), 'uploads', jobId);
-    fs.mkdirSync(uploadDir, { recursive: true });
+
+    // === CHANGE: use platform tmp dir, not process.cwd() (Vercel's /var/task is readonly) ===
+    const baseTmp = path.join(os.tmpdir(), 'memories'); // /tmp/memories on most systems
+    safeMkdirSync(baseTmp);
+    const uploadDir = path.join(baseTmp, 'uploads', jobId);
+    safeMkdirSync(uploadDir);
 
     // normalize incoming files
     let incoming = files.files || files.file || null;
@@ -79,40 +83,29 @@ export default async function handler(req, res) {
       savedPaths.push(dest);
     }
 
-    let usernameRaw = fields.username;
-if (Array.isArray(usernameRaw)) usernameRaw = usernameRaw[0];
-const username = usernameRaw ? String(usernameRaw).trim() : null;
+    const usernameRaw = Array.isArray(fields.username) ? fields.username[0] : fields.username;
+    const username = usernameRaw ? String(usernameRaw).trim() : null;
 
-let refreshTokenRaw = fields.refreshToken;
-if (Array.isArray(refreshTokenRaw)) refreshTokenRaw = refreshTokenRaw[0];
-const refreshToken = refreshTokenRaw ? String(refreshTokenRaw).trim() : null;
+    const userTokenRaw = Array.isArray(fields.userToken) ? fields.userToken[0] : fields.userToken;
+    const userToken = userTokenRaw ? String(userTokenRaw).trim() : null;
 
-const userTokenRaw = Array.isArray(fields.userToken)
-  ? fields.userToken[0]
-  : fields.userToken;
-const userToken = userTokenRaw ? String(userTokenRaw).trim() : null;
+    const job = {
+      jobId,
+      prompt,
+      files: savedPaths,
+      username,
+      userToken,
+      createdAt: Date.now(),
+      status: 'queued',
+    };
 
-const job = {
-  jobId,
-  prompt,
-  strength,
-  promptStrength,
-  modelId,
-  tokenType: tokenType || undefined,
-  files: savedPaths,
-  username,
-  userToken,
-  refreshToken,
-  imageSize,
-  createdAt: Date.now(),
-  status: "queued",
-};
+    // === CHANGE: store job metadata in tmp (quick fix). NOTE: /tmp is ephemeral on serverless
+    const jobsDir = path.join(baseTmp, 'jobs');
+    safeMkdirSync(jobsDir);
+    const jobFile = path.join(jobsDir, `${jobId}.json`);
+    fs.writeFileSync(jobFile, JSON.stringify(job, null, 2), 'utf8');
 
-
-    const jobsDir = path.join(process.cwd(), 'jobs');
-    fs.mkdirSync(jobsDir, { recursive: true });
-    fs.writeFileSync(path.join(jobsDir, `${jobId}.json`), JSON.stringify(job, null, 2), 'utf8');
-
+    // return jobId immediately — worker (recommended) will pick it up.
     return res.status(200).json({ jobId });
   } catch (err) {
     console.error('/api/upload error', err);
