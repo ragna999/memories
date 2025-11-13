@@ -4,116 +4,114 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import sharp from "sharp";
-import { v4 as uuidv4 } from "uuid";
-import { SogniClient } from "@sogni-ai/sogni-client";
 
 export const config = { api: { bodyParser: false } };
 
-function parseForm(req) {
+function parseForm(req, opts = {}) {
   return new Promise((resolve, reject) => {
     const form = formidable({
       keepExtensions: true,
       multiples: false,
-      maxFileSize: 60 * 1024 * 1024,
+      maxFileSize: opts.maxFileSize || 60 * 1024 * 1024, // 60MB default
+      ...opts.formidableOptions,
     });
-    form.parse(req, (err, fields, files) => (err ? reject(err) : resolve({ fields, files })));
+
+    form.parse(req, (err, fields, files) => {
+      if (err) {
+        // make error message friendly
+        return reject(err);
+      }
+      resolve({ fields, files });
+    });
   });
 }
 
-async function createClientAndAuth({ username, userToken, refreshToken }) {
-  const appId = process.env.SOGNI_APPID || "gimlyy";
-  const network = process.env.SOGNI_NETWORK || "fast";
-  const client = await SogniClient.createInstance({ appId, network });
-
-  // try restoring user session if token provided (worker used client.account.setToken style)
-  try {
-    if (username && (userToken || refreshToken)) {
-      if (typeof client.account?.setToken === "function") {
-        await client.account.setToken(username, { token: userToken, refreshToken });
-        client.account.session = { token: userToken, refreshToken };
-      } else if (typeof client.account?.setSession === "function") {
-        // fallback naming
-        await client.account.setSession({ username, token: userToken, refreshToken });
-      }
-    }
-  } catch (e) {
-    console.warn("Failed to set session token (non-fatal):", e?.message || e);
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
-  // don't force connect here; some SDKs will open ws lazily on project.create
-  return client;
-}
-
-export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  // quick sanity: must be multipart/form-data
+  const ct = req.headers["content-type"] || req.headers["Content-Type"];
+  if (!ct || !ct.includes("multipart/form-data")) {
+    return res.status(400).json({
+      ok: false,
+      error: "Bad Request: content-type must be multipart/form-data",
+      receivedContentType: ct || null,
+      hint: "Use form-data enctype and include file field",
+    });
+  }
 
   try {
-    const { fields, files } = await parseForm(req);
-    const prompt = (fields.prompt || "").toString();
-    if (!prompt) return res.status(400).json({ error: "prompt required" });
+    const { fields, files } = await parseForm(req, { maxFileSize: 60 * 1024 * 1024 });
 
-    // optional user creds for Sogni session
-    const username = fields.username ? String(fields.username) : null;
-    const userToken = fields.userToken ? String(fields.userToken) : null;
-    const refreshToken = fields.refreshToken ? String(fields.refreshToken) : null;
+    // debug info for logs
+    console.log("/api/upload parse success - fields:", Object.keys(fields), "files:", Object.keys(files));
 
-    // pick file
-    const fileObj = (files?.file && !Array.isArray(files.file)) ? files.file : Object.values(files || {})[0];
-    if (!fileObj) return res.status(400).json({ error: "file is required" });
-
-    // read buffer and resize (to reasonable size)
-    const tmpPath = fileObj.filepath || fileObj.path || fileObj.tempFilePath;
-    if (!tmpPath || !fs.existsSync(tmpPath)) return res.status(400).json({ error: "uploaded file missing" });
-
-    const buff = fs.readFileSync(tmpPath);
-    // resize via sharp to 768-1024 square-ish (adjust to your model needs)
-    const resized = await sharp(buff).resize(1024, 1024, { fit: "cover" }).png().toBuffer();
-
-    // create Sogni client and auth (if provided)
-    let client;
-    try {
-      client = await createClientAndAuth({ username, userToken, refreshToken });
-    } catch (e) {
-      console.error("Sogni client init failed:", e?.message || e);
-      return res.status(502).json({ error: "Failed to init Sogni client", detail: e?.message || String(e) });
+    // pick up file (try some common fieldnames)
+    let fileObj = null;
+    if (files.file) fileObj = files.file;
+    else if (files.files) fileObj = files.files;
+    else {
+      // fallback: first file key
+      const keys = Object.keys(files || {});
+      if (keys.length > 0) fileObj = files[keys[0]];
     }
 
-    // build params (mirror what worker used)
-    const params = {
-      modelId: fields.modelId || undefined,
-      positivePrompt: prompt,
-      negativePrompt: fields.negativePrompt || "lowres, watermark, bad anatomy",
-      startingImage: resized,
-      startingImageStrength: Number(fields.strength ?? 0.55),
-      guidance: Number(fields.promptStrength ?? 7.5),
-      steps: Number(fields.steps ?? 20),
-      numberOfImages: Number(fields.count ?? 1) || 1,
-      outputFormat: "png",
-      sizePreset: "custom",
-      width: Number(fields.width || 1024),
-      height: Number(fields.height || 1024),
-      tokenType: fields.tokenType || (userToken ? "sogni" : undefined),
-    };
-
-    // create project/job on Sogni
-    let project;
-    try {
-      project = await client.projects.create(params);
-    } catch (e) {
-      console.error("Sogni projects.create failed:", e?.message || e);
-      return res.status(502).json({ error: "Sogni create failed", detail: e?.message || String(e) });
-    } finally {
-      // cleanup uploaded tmp file
-      try { fs.unlinkSync(tmpPath); } catch {}
+    if (!fileObj) {
+      console.warn("/api/upload no file found, files object:", files);
+      return res.status(400).json({ ok: false, error: "Bad Request: no file uploaded", files });
     }
 
-    // try to resolve an id to return
-    const jobId = project?.id || project?.projectId || project?.taskId || project?.jobId || (project && project?.meta?.id) || uuidv4();
+    // ensure filepath exists (formidable v2 uses .filepath)
+    const tempPath = fileObj.filepath || fileObj.path || fileObj.tempFilePath;
+    if (!tempPath || !fs.existsSync(tempPath)) {
+      console.error("/api/upload missing temp file path:", tempPath);
+      return res.status(400).json({ ok: false, error: "Uploaded file temp path missing or not found", tempPath });
+    }
 
-    // return jobId to frontend — frontend will poll /api/status?jobId=<jobId>
-    return res.status(200).json({ jobId, created: true });
+    // optional: quick resize to keep payload sane (adjust as needed)
+    const buffer = fs.readFileSync(tempPath);
+    let resizedBuffer = buffer;
+    try {
+      // only attempt sharp if image (naive check)
+      const mime = fileObj.mimetype || fileObj.type || "";
+      if (mime.startsWith("image/")) {
+        resizedBuffer = await sharp(buffer).resize(1024, 1024, { fit: "inside" }).png().toBuffer();
+      }
+    } catch (e) {
+      console.warn("sharp resize failed (non-fatal):", e?.message || e);
+      resizedBuffer = buffer;
+    }
+
+    // IMPORTANT: clean up temp file
+    try { fs.unlinkSync(tempPath); } catch (e) {}
+
+    // At this point: call Sogni or forward buffer
+    // For debug/demo we'll just return jobId placeholder
+    const jobId = `dbg-${Date.now()}`;
+
+    // If you call Sogni here, put create call and return real jobId
+    // e.g. const project = await client.projects.create({ startingImage: resizedBuffer, ... })
+    // and set jobId = project.id
+
+    return res.status(200).json({
+      ok: true,
+      jobId,
+      note: "Parsed upload OK. Replace placeholder with Sogni create call to submit job.",
+      fields,
+      file: {
+        name: fileObj.originalFilename || fileObj.newFilename || fileObj.name || null,
+        size: resizedBuffer.length,
+      },
+    });
   } catch (err) {
     console.error("/api/upload error:", err);
-    return res.status(500).json({ error: err?.message || String(err) });
+    // map some common formidable errors
+    const msg = err?.message || String(err);
+    if (/maxFileSize|maxSize|PayloadTooLarge|exceeded/i.test(msg)) {
+      return res.status(413).json({ ok: false, error: "Payload Too Large", detail: msg });
+    }
+    return res.status(400).json({ ok: false, error: "Bad Request - parse failed", detail: msg });
   }
 }
