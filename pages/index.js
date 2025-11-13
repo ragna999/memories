@@ -432,7 +432,7 @@ async function handleLoginSubmit(e) {
       if (refreshToken) fd.append("refreshToken", refreshToken);
   
       // use fetch for simplicity; keep simple progress UI via fake progress loop already in code
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const res = await fetch("https://memories-production-85c0.up.railway.app", { method: "POST", body: fd });
       let data;
       try { data = await res.json(); } catch (err) { data = null; }
   
