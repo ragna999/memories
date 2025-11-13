@@ -1,0 +1,68 @@
+{
+  "jobId": "02b6c35e-4dcc-4d30-8461-8296d28d5355",
+  "prompt": "thin colorful sketchy lines, flat pastel colors, childlike chibi, cute face, sleepy eyes, multicolor pixel outlines",
+  "strength": 0.45,
+  "promptStrength": 6.5,
+  "modelId": "coreml-anythingXL",
+  "tokenType": "auto",
+  "files": [
+    "C:\\Users\\Lenovo\\Downloads\\sogni-harmonizer ready-hosting - Copy\\uploads\\02b6c35e-4dcc-4d30-8461-8296d28d5355\\58.png",
+    "C:\\Users\\Lenovo\\Downloads\\sogni-harmonizer ready-hosting - Copy\\uploads\\02b6c35e-4dcc-4d30-8461-8296d28d5355\\59.png",
+    "C:\\Users\\Lenovo\\Downloads\\sogni-harmonizer ready-hosting - Copy\\uploads\\02b6c35e-4dcc-4d30-8461-8296d28d5355\\60.png",
+    "C:\\Users\\Lenovo\\Downloads\\sogni-harmonizer ready-hosting - Copy\\uploads\\02b6c35e-4dcc-4d30-8461-8296d28d5355\\57.png",
+    "C:\\Users\\Lenovo\\Downloads\\sogni-harmonizer ready-hosting - Copy\\uploads\\02b6c35e-4dcc-4d30-8461-8296d28d5355\\54.png",
+    "C:\\Users\\Lenovo\\Downloads\\sogni-harmonizer ready-hosting - Copy\\uploads\\02b6c35e-4dcc-4d30-8461-8296d28d5355\\55.png",
+    "C:\\Users\\Lenovo\\Downloads\\sogni-harmonizer ready-hosting - Copy\\uploads\\02b6c35e-4dcc-4d30-8461-8296d28d5355\\56.png",
+    "C:\\Users\\Lenovo\\Downloads\\sogni-harmonizer ready-hosting - Copy\\uploads\\02b6c35e-4dcc-4d30-8461-8296d28d5355\\52.png"
+  ],
+  "username": "gimlyy",
+  "userToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZGRyIjoiMHg3Q2RFZjA4ODg3YjVDMDNiM2M2ODQ2N0UyMUE5MGRiQkM3NDRCZmY4IiwiZW52IjoicHJvZHVjdGlvbiIsInR5cGUiOiJhY2Nlc3MiLCJpYXQiOjE3NjI4NTQ0OTcsImV4cCI6MTc2Mjk0MDg5N30.g81u7gEcxdw7O0rrJXOuie7mA3cOR5rKPguQWQAF-tMwrG40r0EEqQi0hUQARiRMlVjgdywJvhHs-BXyBuVTFyektGr4h29FebcL9RiOO2mBWZbh61-tKTnPJhsd0saprYBaOSPm3k5oK9yHbHKnVl-nPKXxrB6YNT1-ClXGXvLWzY_r2x5K0V1u2L54pH97J930SoVKAZbJDbwS6eQYShzpxvXW1dUsvXGYO_yY-UGbotNeuDY7TCO58WoPjClN7TkjyDKZ5tzk2a6ti628snQ6i6_1fqWHpOQ822oF6o7IdmQtCrjKm9EsB-eD-H9I_pL-tmDDjuWOiwGpcTdfh7IJH2i4ubt43EdwuhwwXDKO3m3qOrM4DxsVn1_f3-i-W7gX2DkUEvu4Y0LhS6vncfRIcTTBdD-Sgp2du6B934ZckX_rWRuqJsxfZER2zRxBofqStIig025hrbrOfoinT3tCuSLyklx2arpGE5LYw62ppSmLoIuvkOjwa-QvOufGRzQL0cWbOSglcQdyHMKzaa9zbOdZo71Zeck5xRCoUL9fW-TDvV9kRBz6LubPo48kO2VE8OT3buoOoOor96m_lgSS9kkPJeowF2dbmU3ocjn3shx9pH1auUgjQXaTAHxucCb0jKnhek9IEwQYppOf7RBctw3sG7O35byhVeauvhU",
+  "refreshToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZGRyIjoiMHg3Q2RFZjA4ODg3YjVDMDNiM2M2ODQ2N0UyMUE5MGRiQkM3NDRCZmY4IiwiZW52IjoicHJvZHVjdGlvbiIsInR5cGUiOiJyZWZyZXNoIiwiaWF0IjoxNzYyODU0NDk3LCJleHAiOjE3NjU0NDY0OTd9.X-3SEWPe5V-bAh_VY0eiAHVC7wEl50SdFZPXCGnAKyyaxKscVbg73NqLmxVslESBMAFtx4JqC8pB1x5UFp924YAKzAWFby5Ww1sP8aGSExvSokIBtqYxuB0h_3U9bFaYUPdfjeYYsRP98rZgCwxgNyHuAguTrEl0TFkKIF5hxcNbVB-CeTI19_DDSjQZwWwKZHrYhu4as77kQyXkKEgb6hB_UO6EJAml8IWwNf-ZHPE4I37LICUAjlN82BwKfJHCqfaxcp8Y7zXqMm_UzvO1EI_08ubqTk9r3lxQfLbIv1HOtInL2IDX5fF9NgVA338zVxOWAmLK8ViCQaSXMyZNIyzrNeg-NLXgQ5-h73dz7RqAyvbTE2NqZT6ctjYb1mi9rgljEIP5lGjETH_nCZxW_0R_kuGDK1rXIk1G4OYJQj9udQIoYOlgsDap6rtG5QGgRPSjQ_KCcSuVYQrXUebSrpX7MQWLALiUxSTmrhNZwpOQ-ktRXRqHiN8kUE3I1T7Lqlr0Li_f7_k6fOQZap7nB4P8MM8_plU-kMVX4lKMlJL7ppiebTYDX9DyxEF1jkMVWilTkVv8qDq-CvzgmbfO3UzldPL1Hs4Aj_qUf87OkQsL8OqS5HNYjp51jVeoMyrtREZ8SZN83z_EP7I2aPFgh2CHL-f4RfTniJ8MRpTe7wM",
+  "imageSize": "960x1280",
+  "createdAt": 1762855084963,
+  "status": "done",
+  "startedAt": 1762855086909,
+  "completedAt": 1762855194898,
+  "outputs": [
+    {
+      "input": "C:\\Users\\Lenovo\\Downloads\\sogni-harmonizer ready-hosting - Copy\\uploads\\02b6c35e-4dcc-4d30-8461-8296d28d5355\\58.png",
+      "url": "https://complete-images-production.s3-accelerate.amazonaws.com/2025-11-11/9367C8F3-CDE1-4153-A94E-8C2615F9B379/complete-568AA559-2F42-4349-B2BC-09A6FE9AD7F1.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAQGYBPM5EHDACFX4A%2F20251111%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251111T095824Z&X-Amz-Expires=1800&X-Amz-Signature=7bb3432f6c69f22dc8707d9100091d542c9230432dede40103a1454ce8c28a08&X-Amz-SignedHeaders=host&x-id=GetObject",
+      "error": ""
+    },
+    {
+      "input": "C:\\Users\\Lenovo\\Downloads\\sogni-harmonizer ready-hosting - Copy\\uploads\\02b6c35e-4dcc-4d30-8461-8296d28d5355\\59.png",
+      "url": "https://complete-images-production.s3-accelerate.amazonaws.com/2025-11-11/C8F3CDE1-0153-494E-8C26-15F9B3793EEE/complete-67A38588-BFBA-4F4C-8C93-BAB41A117AF9.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAQGYBPM5EHDACFX4A%2F20251111%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251111T095834Z&X-Amz-Expires=1800&X-Amz-Signature=be9c73f1ed8abb39e69e4e8eb71cd9bf8320942858129f7e36fa6b56a61617ed&X-Amz-SignedHeaders=host&x-id=GetObject",
+      "error": ""
+    },
+    {
+      "input": "C:\\Users\\Lenovo\\Downloads\\sogni-harmonizer ready-hosting - Copy\\uploads\\02b6c35e-4dcc-4d30-8461-8296d28d5355\\60.png",
+      "url": "https://complete-images-production.s3-accelerate.amazonaws.com/2025-11-11/CDE10153-A94E-4C26-95F9-B3793EEE7290/complete-B7EBE2AE-5D47-48AF-8B7F-F6CF72197B71.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAQGYBPM5EHDACFX4A%2F20251111%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251111T095853Z&X-Amz-Expires=1800&X-Amz-Signature=d563ea621dce08d4a90e962229138178dc4a79044c5458a54c9c207115a730ec&X-Amz-SignedHeaders=host&x-id=GetObject",
+      "error": ""
+    },
+    {
+      "input": "C:\\Users\\Lenovo\\Downloads\\sogni-harmonizer ready-hosting - Copy\\uploads\\02b6c35e-4dcc-4d30-8461-8296d28d5355\\57.png",
+      "url": "https://complete-images-production.s3-accelerate.amazonaws.com/2025-11-11/0153A94E-8C26-45F9-B379-3EEE72905721/complete-588ED842-C52A-47EF-9561-0A38FE0948CB.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAQGYBPM5EHDACFX4A%2F20251111%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251111T095904Z&X-Amz-Expires=1800&X-Amz-Signature=2a673d34c2e7ee57d425d551921d52353f53618842d8885f0cb31f34913377a7&X-Amz-SignedHeaders=host&x-id=GetObject",
+      "error": ""
+    },
+    {
+      "input": "C:\\Users\\Lenovo\\Downloads\\sogni-harmonizer ready-hosting - Copy\\uploads\\02b6c35e-4dcc-4d30-8461-8296d28d5355\\54.png",
+      "url": "https://complete-images-production.s3-accelerate.amazonaws.com/2025-11-11/A94E8C26-15F9-4379-BEEE-72905721673D/complete-0EC75919-6C3E-4F52-8067-E70309FFD2C4.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAQGYBPM5EHDACFX4A%2F20251111%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251111T095918Z&X-Amz-Expires=1800&X-Amz-Signature=ca7f996bf233ee93632bd2dda288f561b4a2d4f1f8ea95b2a79c7d8bfe69ddb5&X-Amz-SignedHeaders=host&x-id=GetObject",
+      "error": ""
+    },
+    {
+      "input": "C:\\Users\\Lenovo\\Downloads\\sogni-harmonizer ready-hosting - Copy\\uploads\\02b6c35e-4dcc-4d30-8461-8296d28d5355\\55.png",
+      "url": "https://complete-images-production.s3-accelerate.amazonaws.com/2025-11-11/8C2615F9-B379-4EEE-B290-5721673D5EDE/complete-F124ADC0-A345-4696-9D07-76A9369BED1B.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAQGYBPM5EHDACFX4A%2F20251111%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251111T095930Z&X-Amz-Expires=1800&X-Amz-Signature=144392ce38b0b4d71cd2d6cd1141efa8870181906297b583bdfbcb0c757debbf&X-Amz-SignedHeaders=host&x-id=GetObject",
+      "error": ""
+    },
+    {
+      "input": "C:\\Users\\Lenovo\\Downloads\\sogni-harmonizer ready-hosting - Copy\\uploads\\02b6c35e-4dcc-4d30-8461-8296d28d5355\\56.png",
+      "url": "https://complete-images-production.s3-accelerate.amazonaws.com/2025-11-11/15F9B379-3EEE-4290-9721-673D5EDE96D4/complete-0E0A66F5-C8C3-4C02-ADC0-A4A57DA91B76.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAQGYBPM5EHDACFX4A%2F20251111%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251111T095943Z&X-Amz-Expires=1800&X-Amz-Signature=add9ad8ac844cb096ba4b7cb6c15e02f971b6d1986f8116e268582b3396f3d2f&X-Amz-SignedHeaders=host&x-id=GetObject",
+      "error": ""
+    },
+    {
+      "input": "C:\\Users\\Lenovo\\Downloads\\sogni-harmonizer ready-hosting - Copy\\uploads\\02b6c35e-4dcc-4d30-8461-8296d28d5355\\52.png",
+      "url": "https://complete-images-production.s3-accelerate.amazonaws.com/2025-11-11/B3793EEE-7290-4721-A73D-5EDE96D434C0/complete-618333A1-FA7F-422B-A9A3-3587E1A9C8CF.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAQGYBPM5EHDACFX4A%2F20251111%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251111T095954Z&X-Amz-Expires=1800&X-Amz-Signature=47d996ef707da1830d06349400563335671ee259ebef4183d0b05dceb7c902ea&X-Amz-SignedHeaders=host&x-id=GetObject",
+      "error": ""
+    }
+  ]
+}
